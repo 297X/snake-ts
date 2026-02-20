@@ -4,6 +4,9 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Snake TS</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap" rel="stylesheet" />
   <style>
     * {
       box-sizing: border-box;
@@ -12,44 +15,49 @@
     }
 
     body {
-      background: #0f0f1a;
+      background: #0a0912;
       display: flex;
       flex-direction: column;
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      font-family: monospace;
-      color: #ffffff;
+      font-family: 'Press Start 2P', monospace;
+      color: #fff1e8;
     }
 
     h1 {
-      font-size: 1.5rem;
-      letter-spacing: 4px;
-      color: #00ff88;
-      margin-bottom: 20px;
+      font-size: 0.85rem;
+      letter-spacing: 6px;
+      color: #ffec27;
+      margin-bottom: 14px;
       text-transform: uppercase;
+      text-shadow: 2px 2px 0 #7e2553;
     }
 
     #gameCanvas {
       display: block;
-      border: 2px solid #00ff8833;
-      border-radius: 8px;
-      box-shadow: 0 0 40px #00ff8822;
-      touch-action: none;
+      border: 3px solid #7e2553;
+      outline: 1px solid #ff004d33;
+      image-rendering: pixelated;
+      image-rendering: crisp-edges;
     }
 
     footer {
-      margin-top: 16px;
-      font-size: 12px;
-      color: #555;
+      margin-top: 14px;
+      font-size: 7px;
+      color: #5f574f;
       letter-spacing: 1px;
+      line-height: 1.8;
+      text-align: center;
     }
   </style>
 </head>
 <body>
   <h1>Snake</h1>
   <canvas id="gameCanvas"></canvas>
-  <footer>Arrow Keys / WASD &nbsp;|&nbsp; Space to start/pause &nbsp;|&nbsp; P to pause</footer>
+  <footer>
+    ARROWS / WASD &nbsp;&middot;&nbsp; SPACE &mdash; START/PAUSE &nbsp;&middot;&nbsp; P &mdash; PAUSE
+  </footer>
   <script type="module" src="./dist/main.js"></script>
 </body>
 </html>

@@ -27,6 +27,10 @@ export class Snake {
     return this.body.length;
   }
 
+  getDirection(): Direction {
+    return this.direction;
+  }
+
   setDirection(dir: Direction): void {
     const opposites: Record<Direction, Direction> = {
       UP: "DOWN",
@@ -45,18 +49,10 @@ export class Snake {
 
     const newHead: Point = { x: head.x, y: head.y };
     switch (this.direction) {
-      case "UP":
-        newHead.y -= 1;
-        break;
-      case "DOWN":
-        newHead.y += 1;
-        break;
-      case "LEFT":
-        newHead.x -= 1;
-        break;
-      case "RIGHT":
-        newHead.x += 1;
-        break;
+      case "UP":    newHead.y -= 1; break;
+      case "DOWN":  newHead.y += 1; break;
+      case "LEFT":  newHead.x -= 1; break;
+      case "RIGHT": newHead.x += 1; break;
     }
 
     this.body.unshift(newHead);
@@ -83,5 +79,11 @@ export class Snake {
     ];
     this.direction = "RIGHT";
     this.nextDirection = "RIGHT";
+  }
+
+  restore(body: Point[], direction: Direction): void {
+    this.body = body.map((p) => ({ ...p }));
+    this.direction = direction;
+    this.nextDirection = direction;
   }
 }

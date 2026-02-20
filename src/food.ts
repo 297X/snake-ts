@@ -11,6 +11,10 @@ export class Food {
     return this.position;
   }
 
+  setPosition(pos: Point): void {
+    this.position = { ...pos };
+  }
+
   respawn(cols: number, rows: number, exclude: Point[]): void {
     this.position = this.randomPosition(cols, rows, exclude);
   }

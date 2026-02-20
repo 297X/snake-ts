@@ -1,7 +1,6 @@
 import { Point, GameConfig, GameState } from "./types.js";
 import { ParticleSystem } from "./particles.js";
 
-// PICO-8 inspired palette
 const P = {
   black:      "#000000",
   darkBlue:   "#1d2b53",
@@ -50,15 +49,13 @@ export class Renderer {
     ctx.fillStyle = "#0f0e17";
     ctx.fillRect(0, 0, w, h);
 
-    // Subtle dot grid
     ctx.fillStyle = "#181625";
     for (let x = 0; x < config.cols; x++) {
       for (let y = 0; y < config.rows; y++) {
         ctx.fillRect(
           x * config.cellSize + Math.floor(config.cellSize / 2),
           y * config.cellSize + Math.floor(config.cellSize / 2),
-          1,
-          1
+          1, 1
         );
       }
     }
@@ -75,11 +72,9 @@ export class Renderer {
       const y = seg.y * cs;
       const pad = 1;
 
-      // Drop shadow
       ctx.fillStyle = P.black;
       ctx.fillRect(x + pad + 1, y + pad + 1, cs - pad * 2, cs - pad * 2);
 
-      // Segment fill
       if (isHead) {
         ctx.fillStyle = P.yellow;
       } else {
@@ -87,11 +82,9 @@ export class Renderer {
       }
       ctx.fillRect(x + pad, y + pad, cs - pad * 2, cs - pad * 2);
 
-      // Pixel highlight
       ctx.fillStyle = isHead ? P.white : "#5dff6b";
       ctx.fillRect(x + pad + 1, y + pad + 1, 2, 2);
 
-      // Head eyes
       if (isHead) {
         ctx.fillStyle = P.black;
         ctx.fillRect(x + cs - 7, y + 4,      3, 3);
@@ -122,7 +115,6 @@ export class Renderer {
       ctx.fillRect(x + pad + 1, y + pad + 1, 3, 3);
     }
 
-    // Stem
     ctx.fillStyle = P.darkGreen;
     ctx.fillRect(x + Math.floor(cs / 2) - 1, y + pad - 2, 2, 3);
   }
@@ -141,10 +133,7 @@ export class Renderer {
       ctx.fillRect(0, y, w, 1);
     }
 
-    const grad = ctx.createRadialGradient(
-      w / 2, h / 2, h * 0.25,
-      w / 2, h / 2, h * 0.85
-    );
+    const grad = ctx.createRadialGradient(w / 2, h / 2, h * 0.25, w / 2, h / 2, h * 0.85);
     grad.addColorStop(0, "transparent");
     grad.addColorStop(1, "rgba(0,0,0,0.55)");
     ctx.fillStyle = grad;
@@ -171,6 +160,71 @@ export class Renderer {
     ctx.fillStyle = P.lavender;
     ctx.textAlign = "right";
     ctx.fillText(`BEST ${bestScore}`, w - 8, 16);
+  }
+
+  drawRewindOverlay(rewindIndex: number, total: number): void {
+    const { ctx, config } = this;
+    const w = config.cols * config.cellSize;
+    const h = config.rows * config.cellSize;
+    const hudH = 32;
+    const atEnd = rewindIndex >= total - 1;
+
+    // Blue tint over the game world (skip HUD)
+    ctx.fillStyle = "rgba(29, 43, 83, 0.5)";
+    ctx.fillRect(0, hudH, w, h - hudH);
+
+    ctx.textAlign = "center";
+    ctx.textBaseline = "middle";
+
+    if (atEnd) {
+      ctx.fillStyle = P.red;
+      ctx.font = "bold 14px 'Press Start 2P', monospace";
+      ctx.fillText("GAME OVER", w / 2, hudH + (h - hudH) * 0.3);
+    }
+
+    // Bottom panel
+    const panelH = 58;
+    const panelY = h - panelH;
+
+    ctx.fillStyle = "rgba(10, 9, 18, 0.92)";
+    ctx.fillRect(0, panelY, w, panelH);
+
+    ctx.fillStyle = P.darkPurple;
+    ctx.fillRect(0, panelY, w, 2);
+
+    ctx.fillStyle = atEnd ? P.red : P.blue;
+    ctx.font = "bold 8px 'Press Start 2P', monospace";
+    ctx.textAlign = "center";
+    ctx.fillText(atEnd ? "GAME OVER — REWIND?" : "REWIND MODE", w / 2, panelY + 14);
+
+    // Timeline bar
+    const barPad = 8;
+    const barX = barPad;
+    const barY = panelY + 26;
+    const barW = w - barPad * 2;
+    const barH = 8;
+    const progress = total > 1 ? rewindIndex / (total - 1) : 1;
+
+    ctx.fillStyle = P.darkGrey;
+    ctx.fillRect(barX, barY, barW, barH);
+
+    const fillW = Math.round(barW * progress);
+    ctx.fillStyle = atEnd ? P.red : P.blue;
+    if (fillW > 0) ctx.fillRect(barX, barY, fillW, barH);
+
+    // Cursor notch
+    ctx.fillStyle = P.white;
+    ctx.fillRect(barX + fillW - 1, barY - 2, 3, barH + 4);
+
+    // Step counter + controls
+    ctx.font = "6px 'Press Start 2P', monospace";
+    ctx.fillStyle = P.grey;
+
+    ctx.textAlign = "left";
+    ctx.fillText(`${rewindIndex + 1}/${total}`, barX, panelY + 46);
+
+    ctx.textAlign = "right";
+    ctx.fillText("A\u25c4  \u25baD   SPACE:GO   ESC:NEW", w - barPad, panelY + 46);
   }
 
   drawOverlay(state: GameState, score: number, bestScore: number): void {
@@ -202,25 +256,6 @@ export class Renderer {
       ctx.font = "7px 'Press Start 2P', monospace";
       ctx.fillText("ARROWS / WASD TO MOVE", w / 2, h / 2 + 18);
       ctx.fillText("P TO PAUSE", w / 2, h / 2 + 38);
-
-    } else if (state === "gameover") {
-      ctx.fillStyle = P.red;
-      ctx.font = "bold 16px 'Press Start 2P', monospace";
-      ctx.fillText("GAME OVER", w / 2, h / 2 - 55);
-
-      ctx.fillStyle = P.darkPurple;
-      ctx.fillRect(w / 2 - 80, h / 2 - 33, 160, 2);
-
-      ctx.fillStyle = P.white;
-      ctx.font = "bold 10px 'Press Start 2P', monospace";
-      ctx.fillText(`SCORE  ${score}`, w / 2, h / 2 - 5);
-
-      ctx.fillStyle = P.yellow;
-      ctx.fillText(`BEST   ${bestScore}`, w / 2, h / 2 + 22);
-
-      ctx.fillStyle = P.grey;
-      ctx.font = "7px 'Press Start 2P', monospace";
-      ctx.fillText("SPACE TO RETRY", w / 2, h / 2 + 58);
 
     } else if (state === "paused") {
       ctx.fillStyle = P.blue;

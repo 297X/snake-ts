@@ -2,9 +2,11 @@ import { Snake } from "./snake.js";
 import { Food } from "./food.js";
 import { Renderer } from "./renderer.js";
 import { ParticleSystem } from "./particles.js";
-import { Direction, GameConfig, GameState } from "./types.js";
+import { Direction, GameConfig, GameState, Snapshot } from "./types.js";
 
 const FOOD_PARTICLE_COLORS = ["#ff004d", "#ffa300", "#ffec27", "#fff1e8", "#ff77a8"];
+
+const REWIND_SPEED = 4;
 
 export class Game {
   private snake: Snake;
@@ -20,6 +22,10 @@ export class Game {
   private accumulator: number = 0;
   private pulse: number = 0;
   private shakeAmount: number = 0;
+
+  private snapshots: Snapshot[] = [];
+  private rewindIndex: number = 0;
+  private keysHeld: Set<string> = new Set();
 
   constructor(canvas: HTMLCanvasElement, config: GameConfig) {
     this.config = config;
@@ -45,7 +51,18 @@ export class Game {
     };
 
     window.addEventListener("keydown", (e) => {
-      if (e.key === " ") { this.handleAction(); return; }
+      this.keysHeld.add(e.key);
+
+      if (this.state === "rewind") {
+        if (e.key === " ") { e.preventDefault(); this.resumeFromRewind(); return; }
+        if (e.key === "Escape") { this.fullRestart(); return; }
+        if (e.key === "a" || e.key === "A" || e.key === "d" || e.key === "D") {
+          e.preventDefault();
+        }
+        return;
+      }
+
+      if (e.key === " ") { e.preventDefault(); this.handleAction(); return; }
       if (e.key === "p" || e.key === "P") { this.togglePause(); return; }
       const dir = keyMap[e.key];
       if (dir) {
@@ -53,6 +70,10 @@ export class Game {
         this.snake.setDirection(dir);
         if (this.state === "idle") this.start();
       }
+    });
+
+    window.addEventListener("keyup", (e) => {
+      this.keysHeld.delete(e.key);
     });
 
     let touchStartX = 0;
@@ -105,8 +126,40 @@ export class Game {
     this.score = 0;
     this.accumulator = 0;
     this.shakeAmount = 0;
+    this.snapshots = [];
+    this.snapshots.push(this.captureSnapshot());
     this.lastTime = performance.now();
     this.state = "running";
+  }
+
+  private captureSnapshot(): Snapshot {
+    return {
+      body: this.snake.getBody().map((p) => ({ ...p })),
+      direction: this.snake.getDirection(),
+      foodPos: { ...this.food.getPosition() },
+      score: this.score,
+    };
+  }
+
+  private resumeFromRewind(): void {
+    if (this.snapshots.length === 0) return;
+    const snap = this.snapshots[this.rewindIndex];
+
+    this.snapshots = this.snapshots.slice(0, this.rewindIndex + 1);
+
+    this.snake.restore(snap.body, snap.direction);
+    this.food.setPosition(snap.foodPos);
+    this.score = snap.score;
+    this.accumulator = 0;
+    this.shakeAmount = 0;
+    this.lastTime = performance.now();
+    this.state = "running";
+  }
+
+  private fullRestart(): void {
+    this.snapshots = [];
+    this.rewindIndex = 0;
+    this.state = "idle";
   }
 
   private update(): void {
@@ -138,28 +191,53 @@ export class Game {
       this.snake.checkWallCollision(this.config.cols, this.config.rows) ||
       this.snake.checkSelfCollision()
     ) {
-      this.state = "gameover";
+      this.state = "rewind";
+      this.rewindIndex = this.snapshots.length - 1;
       this.shakeAmount = 12;
+      return;
     }
+
+    this.snapshots.push(this.captureSnapshot());
   }
 
   private loop = (timestamp: number): void => {
     requestAnimationFrame(this.loop);
 
-    const delta = this.state === "running" ? timestamp - this.lastTime : 0;
-    this.lastTime = timestamp;
     this.pulse += 0.08;
 
     if (this.state === "running") {
+      const delta = timestamp - this.lastTime;
+      this.lastTime = timestamp;
       this.accumulator += delta;
       const interval = Math.max(80, this.config.speed - this.score * 0.5);
       if (this.accumulator >= interval) {
         this.accumulator -= interval;
         this.update();
       }
+      this.particles.update();
+    } else {
+      this.lastTime = timestamp;
     }
 
-    this.particles.update();
+    if (this.state === "rewind" && this.snapshots.length > 0) {
+      if (this.keysHeld.has("a") || this.keysHeld.has("A") || this.keysHeld.has("ArrowLeft")) {
+        this.rewindIndex = Math.max(0, this.rewindIndex - REWIND_SPEED);
+      }
+      if (this.keysHeld.has("d") || this.keysHeld.has("D") || this.keysHeld.has("ArrowRight")) {
+        this.rewindIndex = Math.min(this.snapshots.length - 1, this.rewindIndex + REWIND_SPEED);
+      }
+    }
+
+    let bodyToRender = this.snake.getBody();
+    let foodToRender = this.food.getPosition();
+    let scoreToRender = this.score;
+
+    if (this.state === "rewind" && this.snapshots.length > 0) {
+      const snap = this.snapshots[this.rewindIndex];
+      bodyToRender = snap.body;
+      foodToRender = snap.foodPos;
+      scoreToRender = snap.score;
+    }
 
     let sx = 0;
     let sy = 0;
@@ -174,11 +252,18 @@ export class Game {
     if (shaking) this.renderer.beginShake(sx, sy);
 
     this.renderer.clear();
-    this.renderer.drawFood(this.food.getPosition(), this.pulse);
-    this.renderer.drawSnake(this.snake.getBody());
-    this.renderer.drawParticles(this.particles);
-    this.renderer.drawScore(this.score, this.bestScore);
-    this.renderer.drawOverlay(this.state, this.score, this.bestScore);
+    this.renderer.drawFood(foodToRender, this.pulse);
+    this.renderer.drawSnake(bodyToRender);
+    if (this.state === "running") {
+      this.renderer.drawParticles(this.particles);
+    }
+    this.renderer.drawScore(scoreToRender, this.bestScore);
+
+    if (this.state === "rewind") {
+      this.renderer.drawRewindOverlay(this.rewindIndex, this.snapshots.length);
+    } else {
+      this.renderer.drawOverlay(this.state, this.score, this.bestScore);
+    }
 
     if (shaking) this.renderer.endShake();
 

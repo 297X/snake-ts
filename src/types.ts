@@ -12,4 +12,11 @@ export interface GameConfig {
   speed: number;
 }
 
-export type GameState = "idle" | "running" | "paused" | "gameover";
+export type GameState = "idle" | "running" | "paused" | "gameover" | "rewind";
+
+export interface Snapshot {
+  body: Point[];
+  direction: Direction;
+  foodPos: Point;
+  score: number;
+}

@@ -1,0 +1,13 @@
+{
+  "name": "snake-ts",
+  "version": "1.0.0",
+  "description": "Snake game built with TypeScript and Canvas",
+  "scripts": {
+    "build": "tsc",
+    "dev": "tsc --watch",
+    "serve": "npx serve ."
+  },
+  "devDependencies": {
+    "typescript": "^5.3.3"
+  }
+}
